@@ -549,7 +549,7 @@ def main():
     
     # Optional positional arguments for passing specific files
     parser.add_argument("files", nargs="*", help="Optional specific PDF files to process. If omitted, processes all PDFs in the directory.")
-    
+    parser.add_argument("--dir", help="Explicitly specify the directory to process. Bypasses uv's current working directory.", default=None)
     parser.add_argument("--restore", action="store_true", help="Restore files to their original names using hidden metadata.")
     parser.add_argument("--restore-suspicious", action="store_true", help="Restore ONLY files deemed suspicious (non-academic) to their original names.")
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-confirm all prompts. Runs without asking for permission.")
@@ -558,8 +558,11 @@ def main():
     
     args = parser.parse_args()
 
-    # Determine folder dynamically based on where the script is located
-    folder = os.path.dirname(os.path.abspath(__file__))
+    if args.dir:
+        folder = os.path.abspath(args.dir)
+    else:
+        # Determine folder dynamically based on where the script is located
+        folder = os.path.dirname(os.path.abspath(__file__))
     
     if args.restore_suspicious:
         run_restore(folder, args, parser, suspicious_only=True)
