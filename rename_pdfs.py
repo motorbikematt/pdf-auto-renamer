@@ -382,7 +382,13 @@ def run_rename(folder, args, parser):
         new_filename = f"{safe_title}.pdf"
         new_filepath = os.path.join(folder, new_filename)
         
-        if os.path.exists(new_filepath) and new_filename != filename:
+        if new_filename == filename:
+            print(f"  [-] File is already perfectly named ('{filename}'). Skipping PDF rewrite to prevent data loss.")
+            run_logs.append([timestamp, "SKIP", filename, new_filename, "Already perfectly named"])
+            print("-" * 60)
+            continue
+        
+        if os.path.exists(new_filepath):
             print(f"  [!] Cannot rename: A file named '{new_filename}' already exists.")
             run_logs.append([timestamp, "FAIL", filename, new_filename, "Target file exists"])
             print("-" * 60)
