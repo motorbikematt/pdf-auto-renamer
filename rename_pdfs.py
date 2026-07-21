@@ -224,12 +224,15 @@ def run_rename(folder, args, parser):
             print("No new files to process. Exiting (--yes flag is active).")
             return
             
-        resp = input("No new files to process. Would you like to restore files to their original names instead? (y/n): ")
-        if resp.strip().lower() in ['y', 'yes']:
-            print("")
-            run_restore(folder, args, parser, skip_echo=True)
+        if already_processed > 0:
+            resp = input("No new files to process. Would you like to restore files to their original names instead? (y/n): ")
+            if resp.strip().lower() in ['y', 'yes']:
+                print("")
+                run_restore(folder, args, parser, skip_echo=True)
+            else:
+                print("Exiting.")
         else:
-            print("Exiting.")
+            print("No PDFs found to process or restore. Exiting.")
         return
 
     skip_suspicious = False
