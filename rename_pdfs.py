@@ -27,8 +27,8 @@ def clean_filename(title):
     title = re.sub(r'[<>"/\\|\?\*]', '', title)
     return title[:150].strip()
 
-def fetch_title_from_doi(text):
-    """Attempts to find a DOI in text and queries CrossRef for the official title."""
+def fetch_metadata_from_doi(text):
+    """Attempts to find a DOI in text and queries CrossRef for official metadata."""
     doi_match = re.search(r'10\.\d{4,9}/[-._;()/:A-Za-z0-9]+', text)
     if not doi_match:
         return None
@@ -41,9 +41,29 @@ def fetch_title_from_doi(text):
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
             data = json.loads(response.read().decode())
-            title_list = data.get('message', {}).get('title', [])
+            msg = data.get('message', {})
+            
+            meta = {}
+            title_list = msg.get('title', [])
             if title_list:
-                return title_list[0]
+                meta['/Title'] = title_list[0]
+                
+            authors = msg.get('author', [])
+            if authors:
+                author_names = []
+                for a in authors:
+                    name = f"{a.get('given', '')} {a.get('family', '')}".strip()
+                    if name:
+                        author_names.append(name)
+                if author_names:
+                    meta['/Author'] = ", ".join(author_names)
+                    
+            journal = msg.get('container-title', [])
+            if journal:
+                meta['/Subject'] = journal[0]
+                
+            return meta if meta else None
+            
     except Exception as e:
         print(f"      [!] DOI Lookup failed for {doi}: {e}")
     return None
@@ -295,34 +315,36 @@ def run_rename(folder, args, parser):
             continue
 
         new_title = None
+        fetched_metadata = None
         
-        try:
-            meta = reader.metadata
-            meta_title = meta.title if meta else None
-            if not is_uninformative_metadata(meta_title):
-                print(f"  -> Found valid metadata title: {meta_title}")
-                new_title = meta_title
-            else:
-                print("  -> Metadata title missing or uninformative. Falling back to content...")
-        except Exception as e:
-            print(f"  -> Error reading metadata: {e}. Falling back to content...")
-            
-        if not new_title and getattr(args, 'doi_lookup', False):
-            print("  -> Attempting DOI lookup...")
+        if getattr(args, 'doi_lookup', False):
+            print("  -> Attempting DOI lookup for official metadata...")
             try:
                 doc = fitz.open(filepath)
                 text_for_doi = ""
                 for i in range(min(2, len(doc))):
                     text_for_doi += doc[i].get_text("text")
                 
-                doi_title = fetch_title_from_doi(text_for_doi)
-                if doi_title:
-                    print(f"  -> Found official title via CrossRef DOI: {doi_title}")
-                    new_title = doi_title
+                fetched_metadata = fetch_metadata_from_doi(text_for_doi)
+                if fetched_metadata and '/Title' in fetched_metadata:
+                    new_title = fetched_metadata['/Title']
+                    print(f"  -> Found official metadata via CrossRef DOI: {new_title}")
                 else:
-                    print("  -> No valid DOI found or lookup failed. Falling back to visual heuristics...")
+                    print("  -> No valid DOI found or lookup failed. Falling back...")
             except Exception as e:
                 print(f"  -> Error during DOI lookup: {e}")
+                
+        if not new_title:
+            try:
+                meta = reader.metadata
+                meta_title = meta.title if meta else None
+                if not is_uninformative_metadata(meta_title):
+                    print(f"  -> Found valid embedded metadata title: {meta_title}")
+                    new_title = meta_title
+                else:
+                    print("  -> Embedded metadata title missing or uninformative.")
+            except Exception as e:
+                print(f"  -> Error reading embedded metadata: {e}")
 
         if not new_title:
             new_title = extract_title_from_content(filepath)
@@ -354,6 +376,10 @@ def run_rename(folder, args, parser):
         try:
             writer = PdfWriter(clone_from=filepath)
             meta_dict = dict(reader.metadata) if reader.metadata else {}
+            
+            if fetched_metadata:
+                meta_dict.update(fetched_metadata)
+                
             meta_dict["/OriginalFileName"] = filename
             writer.add_metadata(meta_dict)
             
