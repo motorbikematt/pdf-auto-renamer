@@ -12,6 +12,9 @@ import argparse
 import glob
 import csv
 from datetime import datetime
+import urllib.request
+import urllib.parse
+import json
 import fitz  # PyMuPDF: Used for visual text extraction
 from pypdf import PdfReader, PdfWriter  # pypdf: Used for metadata injection
 
@@ -23,6 +26,27 @@ def clean_filename(title):
     title = title.replace(':', ' -')
     title = re.sub(r'[<>"/\\|\?\*]', '', title)
     return title[:150].strip()
+
+def fetch_title_from_doi(text):
+    """Attempts to find a DOI in text and queries CrossRef for the official title."""
+    doi_match = re.search(r'10\.\d{4,9}/[-._;()/:A-Za-z0-9]+', text)
+    if not doi_match:
+        return None
+        
+    doi = doi_match.group(0).rstrip('.-,;')
+    
+    url = f"https://api.crossref.org/works/{urllib.parse.quote(doi)}"
+    req = urllib.request.Request(url, headers={'User-Agent': 'PDFAutoRenamer/1.0 (mailto:test@example.com)'})
+    
+    try:
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode())
+            title_list = data.get('message', {}).get('title', [])
+            if title_list:
+                return title_list[0]
+    except Exception as e:
+        print(f"      [!] DOI Lookup failed for {doi}: {e}")
+    return None
 
 def is_uninformative_metadata(title):
     """Evaluates if a metadata title is useless."""
@@ -280,6 +304,23 @@ def run_rename(folder, args, parser):
         except Exception as e:
             print(f"  -> Error reading metadata: {e}. Falling back to content...")
             
+        if not new_title and getattr(args, 'doi_lookup', False):
+            print("  -> Attempting DOI lookup...")
+            try:
+                doc = fitz.open(filepath)
+                text_for_doi = ""
+                for i in range(min(2, len(doc))):
+                    text_for_doi += doc[i].get_text("text")
+                
+                doi_title = fetch_title_from_doi(text_for_doi)
+                if doi_title:
+                    print(f"  -> Found official title via CrossRef DOI: {doi_title}")
+                    new_title = doi_title
+                else:
+                    print("  -> No valid DOI found or lookup failed. Falling back to visual heuristics...")
+            except Exception as e:
+                print(f"  -> Error during DOI lookup: {e}")
+
         if not new_title:
             new_title = extract_title_from_content(filepath)
             if new_title:
@@ -459,6 +500,7 @@ def main():
     parser.add_argument("--restore-suspicious", action="store_true", help="Restore ONLY files deemed suspicious (non-academic) to their original names.")
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-confirm all prompts. Runs without asking for permission.")
     parser.add_argument("--dry-run", action="store_true", help="Simulate the process without modifying or moving any files on disk.")
+    parser.add_argument("--doi-lookup", action="store_true", help="Attempt to find a DOI in the PDF and query CrossRef for the official title.")
     
     args = parser.parse_args()
 
