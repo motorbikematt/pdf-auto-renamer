@@ -72,9 +72,20 @@ def is_uninformative_metadata(title):
     """Evaluates if a metadata title is useless."""
     if not title or not title.strip():
         return True
+        
+    title_upper = title.strip().upper()
     bad_titles = ["LIPPINCOTT WILLIAMS AND WILKINS", "UNTITLED"]
-    if title.strip().upper() in bad_titles:
+    if title_upper in bad_titles:
         return True
+        
+    # Catch Elsevier PII (Publisher Item Identifier) strings which are just serial numbers
+    if title_upper.startswith("PII:") or title_upper.startswith("PII -"):
+        return True
+        
+    # Catch titles that are just DOIs
+    if title_upper.startswith("DOI:") or ("10." in title and "/" in title and len(title.split()) == 1):
+        return True
+        
     return False
 
 def is_likely_academic_paper(filepath):
