@@ -212,10 +212,16 @@ def echo_description(parser):
 def run_rename(folder, args, parser):
     echo_description(parser)
     
+    import glob
     target_files = []
     if args.files:
-        print(f"Scanning {len(args.files)} explicitly requested file(s)...\n")
-        target_files = [os.path.basename(f) for f in args.files]
+        print(f"Scanning explicitly requested file(s)...\n")
+        for f in args.files:
+            expanded = glob.glob(f)
+            if expanded:
+                target_files.extend([os.path.basename(e) for e in expanded])
+            else:
+                target_files.append(os.path.basename(f))
     else:
         print("Scanning folder for PDFs...\n")
         target_files = os.listdir(folder)
@@ -445,10 +451,16 @@ def run_restore(folder, args, parser, skip_echo=False, suspicious_only=False):
     if not skip_echo:
         echo_description(parser)
         
+    import glob
     target_files = []
     if args.files:
-        print(f"Scanning {len(args.files)} explicitly requested file(s) for restore...\n")
-        target_files = [os.path.basename(f) for f in args.files]
+        print(f"Scanning explicitly requested file(s) for restore...\n")
+        for f in args.files:
+            expanded = glob.glob(f)
+            if expanded:
+                target_files.extend([os.path.basename(e) for e in expanded])
+            else:
+                target_files.append(os.path.basename(f))
     else:
         print("Scanning folder for PDFs to restore...\n")
         target_files = os.listdir(folder)
