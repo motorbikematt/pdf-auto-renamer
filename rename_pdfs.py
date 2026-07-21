@@ -90,6 +90,10 @@ def is_uninformative_metadata(title):
     if title_upper.endswith(".TMP") or title_upper.startswith("WPC") or title_upper.startswith("~") or title_upper.startswith("PONE."):
         return True
         
+    import re
+    if re.match(r'^\d+_\d+_\d+_ARTICLE', title_upper):
+        return True
+        
     return False
 
 def is_likely_academic_paper(filepath):
