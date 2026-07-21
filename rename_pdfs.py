@@ -222,8 +222,10 @@ def run_rename(folder, args, parser):
         try:
             reader = PdfReader(filepath)
             if reader.metadata and "/OriginalFileName" in reader.metadata:
-                already_processed += 1
-                continue
+                original_name = reader.metadata["/OriginalFileName"]
+                if filename != original_name:
+                    already_processed += 1
+                    continue
         except Exception:
             pass
             
