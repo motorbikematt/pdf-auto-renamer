@@ -55,6 +55,6 @@ The script supports several flags to automate or tweak its behavior:
 | :--- | :--- |
 | `--restore` | Restores files to their original names using the hidden metadata. |
 | `--restore-suspicious` | Scans processed files, re-evaluates their text, and restores **ONLY** the files deemed suspicious (non-academic). Useful if you bulk-renamed files and later realize some non-academic documents were caught in the crossfire. |
-| `--doi-lookup` | Attempts to find a DOI string within the text of the PDF and performs a free lookup against the CrossRef API to retrieve the official academic title. If this fails, it falls back to the visual heuristics. |
+| `--no-doi` | Disables the default CrossRef API lookup. If passed, the script will skip searching for a DOI and will rely entirely on the embedded metadata and visual heuristics (useful if you are offline or rate-limited). |
 | `-y, --yes` | **Auto-Confirm:** Bypasses all interactive `(y/n)` prompts. The script will execute autonomously without halting for your permission. |
 | `--dry-run` | **Simulation Mode:** Scans the files, evaluates the titles, and logs the planned actions to the console/CSV, but does **not** actually modify, rename, or move any files on your disk. |

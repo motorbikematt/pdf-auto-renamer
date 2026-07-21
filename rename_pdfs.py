@@ -317,7 +317,7 @@ def run_rename(folder, args, parser):
         new_title = None
         fetched_metadata = None
         
-        if getattr(args, 'doi_lookup', False):
+        if not getattr(args, 'no_doi', False):
             print("  -> Attempting DOI lookup for official metadata...")
             try:
                 doc = fitz.open(filepath)
@@ -529,7 +529,7 @@ def main():
     parser.add_argument("--restore-suspicious", action="store_true", help="Restore ONLY files deemed suspicious (non-academic) to their original names.")
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-confirm all prompts. Runs without asking for permission.")
     parser.add_argument("--dry-run", action="store_true", help="Simulate the process without modifying or moving any files on disk.")
-    parser.add_argument("--doi-lookup", action="store_true", help="Attempt to find a DOI in the PDF and query CrossRef for the official title.")
+    parser.add_argument("--no-doi", action="store_true", help="Disable the default CrossRef DOI lookup (useful if offline or rate-limited).")
     
     args = parser.parse_args()
 
