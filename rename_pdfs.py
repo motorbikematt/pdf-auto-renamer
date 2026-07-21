@@ -81,24 +81,27 @@ def is_likely_academic_paper(filepath):
     """Detects if a PDF is an academic paper by checking for common structural keywords."""
     try:
         doc = fitz.open(filepath)
-        if len(doc) == 0:
+        try:
+            if len(doc) == 0:
+                return False
+                
+            # Check text on the first two pages
+            text = ""
+            for i in range(min(2, len(doc))):
+                text += doc[i].get_text("text").lower()
+                
+            academic_keywords = [
+                "abstract", "doi:", "doi.org", "keywords:", "materials and methods",
+                "introduction", "references", "published by", "university", "journal"
+            ]
+            
+            # If we find at least one strong keyword, classify as academic
+            for kw in academic_keywords:
+                if kw in text:
+                    return True
             return False
-            
-        # Check text on the first two pages
-        text = ""
-        for i in range(min(2, len(doc))):
-            text += doc[i].get_text("text").lower()
-            
-        academic_keywords = [
-            "abstract", "doi:", "doi.org", "keywords:", "materials and methods",
-            "introduction", "references", "published by", "university", "journal"
-        ]
-        
-        # If we find at least one strong keyword, classify as academic
-        for kw in academic_keywords:
-            if kw in text:
-                return True
-        return False
+        finally:
+            doc.close()
     except Exception:
         # Default to True so it proceeds normally if PyMuPDF throws a read error
         return True 
@@ -107,39 +110,42 @@ def extract_title_from_content(filepath):
     """Heuristic to extract title from the first page's largest font."""
     try:
         doc = fitz.open(filepath)
-        if len(doc) == 0:
-            return None
-        page = doc[0] 
-        blocks = page.get_text("dict")["blocks"]
-        texts = []
-        for b in blocks:
-            if b.get('type') == 0: 
-                for line in b.get("lines", []):
-                    for span in line.get("spans", []):
-                        text = span.get("text", "").strip()
-                        size = span.get("size", 0)
-                        if text:
-                            texts.append({"text": text, "size": size})
-        if not texts:
-            return None
-        sizes = {}
-        for t in texts:
-            if len(t["text"]) > 2:
-                rounded_size = round(t["size"], 1)
-                sizes.setdefault(rounded_size, []).append(t["text"])
-        if not sizes:
-            return None
+        try:
+            if len(doc) == 0:
+                return None
+            page = doc[0] 
+            blocks = page.get_text("dict")["blocks"]
+            texts = []
+            for b in blocks:
+                if b.get('type') == 0: 
+                    for line in b.get("lines", []):
+                        for span in line.get("spans", []):
+                            text = span.get("text", "").strip()
+                            size = span.get("size", 0)
+                            if text:
+                                texts.append({"text": text, "size": size})
+            if not texts:
+                return None
+            sizes = {}
+            for t in texts:
+                if len(t["text"]) > 2:
+                    rounded_size = round(t["size"], 1)
+                    sizes.setdefault(rounded_size, []).append(t["text"])
+            if not sizes:
+                return None
+                
+            sorted_sizes = sorted(sizes.items(), reverse=True)
+            largest_size, largest_text_parts = sorted_sizes[0]
+            largest_text = " ".join(largest_text_parts)
             
-        sorted_sizes = sorted(sizes.items(), reverse=True)
-        largest_size, largest_text_parts = sorted_sizes[0]
-        largest_text = " ".join(largest_text_parts)
-        
-        # Edge Case: If the largest text is just the Journal name
-        if "journal" in largest_text.lower() and len(sorted_sizes) > 1:
-            second_largest_size, second_largest_text_parts = sorted_sizes[1]
-            return " ".join(second_largest_text_parts)
-            
-        return largest_text
+            # Edge Case: If the largest text is just the Journal name
+            if "journal" in largest_text.lower() and len(sorted_sizes) > 1:
+                second_largest_size, second_largest_text_parts = sorted_sizes[1]
+                return " ".join(second_largest_text_parts)
+                
+            return largest_text
+        finally:
+            doc.close()
     except Exception as e:
         print(f"  [!] PyMuPDF Error reading {os.path.basename(filepath)}: {e}")
         return None
@@ -323,9 +329,12 @@ def run_rename(folder, args, parser):
             print("  -> Attempting DOI lookup for official metadata...")
             try:
                 doc = fitz.open(filepath)
-                text_for_doi = ""
-                for i in range(min(2, len(doc))):
-                    text_for_doi += doc[i].get_text("text")
+                try:
+                    text_for_doi = ""
+                    for i in range(min(2, len(doc))):
+                        text_for_doi += doc[i].get_text("text")
+                finally:
+                    doc.close()
                 
                 fetched_metadata = fetch_metadata_from_doi(text_for_doi)
                 if fetched_metadata and '/Title' in fetched_metadata:
@@ -387,6 +396,9 @@ def run_rename(folder, args, parser):
             
             with open(temp_filepath, "wb") as f:
                 writer.write(f)
+                
+            if hasattr(writer, 'close'):
+                writer.close()
                 
             if filepath != new_filepath:
                 os.rename(filepath, filepath + ".bak")
