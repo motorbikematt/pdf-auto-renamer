@@ -35,7 +35,9 @@ def fetch_metadata_from_doi(text):
         return None
         
     doi = doi_match.group(0).rstrip('.-,;')
-    
+    if doi.endswith(')') and '(' not in doi:
+        doi = doi[:-1]
+        
     url = f"https://api.crossref.org/works/{urllib.parse.quote(doi)}"
     req = urllib.request.Request(url, headers={'User-Agent': 'PDFAutoRenamer/1.0 (mailto:test@example.com)'})
     
