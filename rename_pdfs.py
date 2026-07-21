@@ -86,6 +86,9 @@ def is_uninformative_metadata(title):
     if title_upper.startswith("DOI:") or ("10." in title and "/" in title and len(title.split()) == 1):
         return True
         
+    if title_upper.endswith(".TMP") or title_upper.startswith("WPC") or title_upper.startswith("~"):
+        return True
+        
     return False
 
 def is_likely_academic_paper(filepath):
