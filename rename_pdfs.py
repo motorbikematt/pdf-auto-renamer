@@ -3,6 +3,7 @@
 # dependencies = [
 #     "pymupdf",
 #     "pypdf",
+#     "cryptography>=3.1",
 # ]
 # ///
 
